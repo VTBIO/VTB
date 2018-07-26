@@ -2,7 +2,7 @@
 
 #include "thread.h"
 
-static void func_entry(void *arg)
+static void *func_entry(void *arg)
 {
     struct thread_context *context = arg;
     if (context->entry != NULL) {

@@ -4,13 +4,16 @@
 #include <assert.h>
 #include <unistd.h>
 
-#include "rocksdb/c.h"
+#include "leveldb/c.h"
 #include "database.h"
 
-#define DEFAULT_DIR_FILE "./data/vtb_data"
-#define DEFAULT_BACKUP_DIR_FILE "./backup/vtb_data"
+#define DEFAULT_DIR_FILE            "database"
+#define DEFAULT_BACKUP_DIR_FILE     "backup_database"
 
-static rocksdb_t *db = null;
+static leveldb_t *db = NULL;
+static leveldb_options_t *options = NULL;
+static leveldb_writeoptions_t *woptions = NULL;
+static leveldb_readoptions_t *roptions = NULL;
 
 static struct db_config default_config = {
     .db_file = DEFAULT_DIR_FILE,
@@ -18,64 +21,87 @@ static struct db_config default_config = {
     .backup_db_file = DEFAULT_BACKUP_DIR_FILE,
 };
 
-static void rocks_db_init(struct db_config *config)
+static void level_db_init(struct db_config *config)
 {
     if (config == NULL) {
 
     }
 }
 
-static int rocks_db_open(void)
+static int level_db_open(void)
 {
-    char *err = null;
+    char *err = NULL;
 
-    rocksdb_options_t *options = rocksdb_options_create();
-    // Optimize RocksDB. This is the easiest way to
-    // get RocksDB to perform well
-    long cpus = sysconf(_SC_NPROCESSORS_ONLN);  // get # of online cores
-    rocksdb_options_increase_parallelism(options, (int)(cpus));
-    rocksdb_options_optimize_level_style_compaction(options, 0);
-    // create the DB if it's not already present
-    rocksdb_options_set_create_if_missing(options, 1);
+    options = leveldb_options_create();
+    leveldb_options_set_create_if_missing(options, 1);
+    db = leveldb_open(options, default_config.db_file, &err);
+    if (err != NULL) {
+        fprintf(stderr, "Open fail. %s\n", err);
+        leveldb_free(err);
+        return -1;
+    }
 
-    // open DB
-    db = rocksdb_open(options, default_config.db_file, &err);
-    assert(!err);
+    return 0;
 }
 
-void rocks_db_put(const char[] key, const char* value)
+void level_db_put(const char *key, const char* value)
 {
-    rocksdb_writeoptions_t *writeoptions = rocksdb_writeoptions_create();
-    rocksdb_put(db, writeoptions, key, strlen(key), value, strlen(value) + 1, &err);
-    assert(!err);
+    char *err = NULL;
+
+    woptions = leveldb_writeoptions_create();
+    leveldb_put(db, woptions, key, strlen(key), value, strlen(value), &err);
+    if (err != NULL) {
+        fprintf(stderr, "Write fail. %s\n", err);
+        leveldb_free(err);
+    }
 }
 
 /* Warning: free value */
-static char *rocks_db_get(char[] key)
+static char *level_db_get(char *key)
 {
-    rocksdb_readoptions_t *readoptions = rocksdb_readoptions_create();
-    size_t len;
-    char *value = rocksdb_get(db, readoptions, key, strlen(key), &len, &err);
-    assert(!err);
+    char *err = NULL;
+    char *value = NULL;
+    size_t read_len = -1;
+
+    roptions = leveldb_readoptions_create();
+    value = leveldb_get(db, roptions, key, strlen(key), &read_len, &err);
+    if (err != NULL) {
+        fprintf(stderr, "Read fail. %s\n", err);
+        leveldb_free(err);
+        return NULL;
+    }
+
     return value;
 }
 
-static void rocks_db_close(void)
+static void level_db_del(char *key)
 {
-    rocksdb_close(db);
+    char *err = NULL;
+
+    leveldb_delete(db, woptions, key, strlen(key), &err);
+    if (err != NULL) {
+        leveldb_free(err);
+        fprintf(stderr, "Delete fail. %s\n", err);
+    }
+}
+
+static void level_db_close(void)
+{
+    leveldb_close(db);
 }
 
 /* static for config */
 
 static struct db_operations_struct default_db_ops = {
-    .init   = rocks_db_init,
-    .open   = rocks_db_open,
-    .put    = rocks_db_put,
-    .get    = rocks_db_get,
-    .close  = rocks_db_close,
+    .init   = level_db_init,
+    .open   = level_db_open,
+    .put    = level_db_put,
+    .get    = level_db_get,
+    .delete = level_db_del,
+    .close  = level_db_close,
 };
 
-static struct db_struct[] db_instance = {
+static struct db_struct db_instance[] = {
     {
         .config = &default_config,
         .ops    = &default_db_ops,

@@ -10,8 +10,9 @@ struct db_config {
 struct db_operations_struct {
     void (*init)(struct db_config *config);
     int (*open)(void);
-    void (*put)(const char[] key, const char[] value);
-    char *(*get)(char[] key);
+    void (*put)(const char *key, const char *value);
+    char *(*get)(char *key);
+    void (*delete)(char *key);
     void (*close)(void);
 };
 
