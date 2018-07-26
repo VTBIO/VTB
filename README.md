@@ -5,7 +5,7 @@ Welcome to the VTBIO source code repository!
 Some of the groundbreaking features of VTBIO include:
 
 1. Free Rate Limited Transactions 
-1. Low Latency Block confirmation (0.5 seconds)
+1. Low Latency Block confirmation
 1. Use native C language 
 ...
 
