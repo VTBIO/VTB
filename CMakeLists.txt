@@ -6,7 +6,7 @@ enable_language(CXX)
 enable_language(C)
 enable_language(ASM)
 
-include_directories ("${PROJECT_SOURCE_DIR}/include")
+include_directories ("${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/net/include")
 
 # add subdirectory
 add_subdirectory (storage)
